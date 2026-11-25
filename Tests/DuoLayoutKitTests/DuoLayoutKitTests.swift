@@ -117,4 +117,25 @@ final class DuoLayoutKitTests: XCTestCase {
         XCTAssertTrue(DuoDisplayForm.innerSplitLeft(size).isInnerScreen)
         XCTAssertTrue(DuoDisplayForm.innerSplitRight(size).isInnerScreen)
     }
+
+    /// 验证外屏、内屏横屏、内屏竖屏的过渡安全区过滤逻辑，确保中途未稳定的脏安全区会被跳过
+    func testTransitionSafeAreaStabilityChecks() {
+        // 竖转横过渡帧：窗口已横，但安全区还停在竖屏的 top=82, left=0, right=0
+        let stalePortraitInsets = UIEdgeInsets(top: 82, left: 0, bottom: 34, right: 0)
+        XCTAssertFalse(DuoLayoutManager.hasSingleSideBarInset(stalePortraitInsets))
+        // 横屏/外屏稳定态：右侧状态栏 84 已就位
+        let stableLandscapeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 84)
+        XCTAssertTrue(DuoLayoutManager.hasSingleSideBarInset(stableLandscapeInsets))
+        // 换边过渡帧：左右同时有侧边栏
+        let dualSideBarInsets = UIEdgeInsets(top: 0, left: 84, bottom: 34, right: 84)
+        XCTAssertFalse(DuoLayoutManager.hasSingleSideBarInset(dualSideBarInsets))
+
+        // 横转竖过渡帧：残留右侧 84，或顶部状态栏安全区还是 0
+        XCTAssertFalse(DuoLayoutManager.isStableInnerPortraitInsets(stableLandscapeInsets, isStatusBarHidden: false))
+        XCTAssertFalse(DuoLayoutManager.isStableInnerPortraitInsets(UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 0), isStatusBarHidden: false))
+        // 竖屏稳定态：左右为 0 且顶部 82 已就位
+        XCTAssertTrue(DuoLayoutManager.isStableInnerPortraitInsets(stalePortraitInsets, isStatusBarHidden: false))
+        // 状态栏主动隐藏时，顶部为 0 也可通过
+        XCTAssertTrue(DuoLayoutManager.isStableInnerPortraitInsets(UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 0), isStatusBarHidden: true))
+    }
 }

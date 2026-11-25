@@ -46,6 +46,8 @@ public final class DuoLayoutManager {
     @ObservationIgnored private var isRefreshScheduled = false
     /// 标记本次刷新排队期间是否又收到新的布局事件，跑完本轮后再补算一次，避免分屏换边或横转竖停在过渡值上，不参与界面刷新
     @ObservationIgnored private var needsAnotherRefresh = false
+    /// 标记是否已经给当前进行中的转场协调器挂过结束回调，避免同一次转场动画里重复注册，不参与界面刷新
+    @ObservationIgnored private var isWaitingTransitionCompletion = false
 }
 
 //MARK: - 计算属性
@@ -273,6 +275,22 @@ extension DuoLayoutManager {
             return (0, max(windowWidth, 0))
         }
     }
+
+    /// 判断窗口安全区是否已经稳定在「有且只有一侧存在竖排状态栏」的状态（用于外屏和内屏横屏过滤旋转过渡帧）
+    static func hasSingleSideBarInset(_ insets: UIEdgeInsets) -> Bool {
+        let hasLeft = insets.left > 1
+        let hasRight = insets.right > 1
+        return hasLeft != hasRight
+    }
+
+    /// 判断内屏竖屏全屏时的窗口安全区是否已经稳定（左右不能残留横屏侧边栏，且状态栏可见时顶部安全区已落位）
+    static func isStableInnerPortraitInsets(_ insets: UIEdgeInsets, isStatusBarHidden: Bool) -> Bool {
+        guard insets.left <= 1, insets.right <= 1 else { return false }
+        if isStatusBarHidden == false {
+            return insets.top > 1
+        }
+        return true
+    }
 }
 
 //MARK: - 内部刷新方法
@@ -333,6 +351,18 @@ private extension DuoLayoutManager {
     @MainActor
     func refresh() {
         syncInternalObservers()
+        // 转场动画进行中窗口宽高往往已经变成新值，但安全区和 Tab 栏还是旧值，等转场彻底结束再算最终状态
+        if let coordinator = rootViewController?.transitionCoordinator {
+            if isWaitingTransitionCompletion == false {
+                isWaitingTransitionCompletion = true
+                coordinator.animate(alongsideTransition: nil) { _ in
+                    self.isWaitingTransitionCompletion = false
+                    self.scheduleRefreshWithFollowUp()
+                }
+            }
+            return
+        }
+        isWaitingTransitionCompletion = false
         guard let window = currentWindow, window.bounds.width > 0 else { return }
         guard let newForm = calculateForm(in: window) else { return }
         let newWindowInsets = window.safeAreaInsets
@@ -398,11 +428,23 @@ private extension DuoLayoutManager {
         guard isDuo else { return .phone(sizeByWindow) }
         // iPhone Duo 上 UIScreen.main 固定是外屏；窗口所在的屏幕和它一样大，说明 App 正显示在外屏上
         guard let screen = window.windowScene?.screen, screen.bounds.size != UIScreen.main.bounds.size else {
+            // 外屏必然有且只有一侧存在竖排状态栏；左右都为 0 或左右同时存在说明安全区还在过渡，跳过等下一轮
+            guard Self.hasSingleSideBarInset(windowInsets) else { return nil }
             return .outer(sizeByWindow)
         }
         // 窗口和内屏一样宽，说明 App 占满了内屏，没有分屏
         guard window.bounds.width < screen.bounds.width else {
-            return window.bounds.width > window.bounds.height ? .innerLandscape(sizeByWindow) : .innerPortrait(sizeByWindow)
+            if window.bounds.width > window.bounds.height {
+                // 内屏横屏全屏必然有且只有一侧存在竖排状态栏；从竖屏转过来安全区还没切到位时（左右都是 0）先跳过
+                guard Self.hasSingleSideBarInset(windowInsets) else { return nil }
+                return .innerLandscape(sizeByWindow)
+            }
+            // 内屏竖屏全屏没有左右侧边栏；从横屏转过来还残留左右侧栏宽度，或状态栏可见却还没落位顶部安全区时，先跳过
+            let isStatusBarHidden = window.windowScene?.statusBarManager?.isStatusBarHidden ?? false
+            guard Self.isStableInnerPortraitInsets(windowInsets, isStatusBarHidden: isStatusBarHidden) else {
+                return nil
+            }
+            return .innerPortrait(sizeByWindow)
         }
         // 内屏上窗口比屏幕窄，说明在和别的 App 左右分屏：
         // 右分屏时右侧 84pt 状态栏算在窗口安全区里；左分屏时左侧 84pt Tab 栏/导航栏只算在导航栈内部页面上。
