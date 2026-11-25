@@ -48,6 +48,8 @@ public final class DuoLayoutManager {
     @ObservationIgnored private var needsAnotherRefresh = false
     /// 标记是否已经给当前进行中的转场协调器挂过结束回调，避免同一次转场动画里重复注册，不参与界面刷新
     @ObservationIgnored private var isWaitingTransitionCompletion = false
+    /// 记录等待系统 Tab 栏在侧边与底部之间搬家就位时已经连续跳过的帧数，最多等 3 轮防止异常布局下卡死，不参与界面刷新
+    @ObservationIgnored private var tabBarSettleRetryCount = 0
 }
 
 //MARK: - 计算属性
@@ -291,6 +293,20 @@ extension DuoLayoutManager {
         }
         return true
     }
+
+    /// 判断系统 Tab 栏是不是还在横排与竖排之间搬家途中（有可见 Tab 栏时：无侧栏形态底部高度应大于 0，有侧栏形态底部高度应为 0）
+    static func needsWaitTabBarSettle(
+        for form: DuoDisplayForm,
+        hasVisibleTabBar: Bool,
+        isSystemVerticalBarEnabled: Bool,
+        bottomTabBarHeight: CGFloat
+    ) -> Bool {
+        guard hasVisibleTabBar else { return false }
+        if form.hasSideBar {
+            return isSystemVerticalBarEnabled && bottomTabBarHeight > 0.5
+        }
+        return bottomTabBarHeight <= 0.5
+    }
 }
 
 //MARK: - 内部刷新方法
@@ -367,6 +383,16 @@ private extension DuoLayoutManager {
         guard let newForm = calculateForm(in: window) else { return }
         let newWindowInsets = window.safeAreaInsets
         let newBottomTabBarHeight = measureBottomHorizontalTabBarHeight(in: window)
+        // 有可见系统 Tab 栏时，横转竖后 Tab 栏挪回底部（或竖转横后挪到侧边）常比窗口安全区晚一帧；
+        // 还没搬到位前先跳过并补查下一轮，最多等 3 轮，保证对外只吐出一次最终值且不卡死
+        if isWaitingForTabBarToSettle(form: newForm, bottomTabBarHeight: newBottomTabBarHeight) {
+            if tabBarSettleRetryCount < 3 {
+                tabBarSettleRetryCount += 1
+                scheduleRefresh()
+                return
+            }
+        }
+        tabBarSettleRetryCount = 0
         let newContentInsets = calculateContentInsets(
             in: window,
             form: newForm,
@@ -508,6 +534,25 @@ private extension DuoLayoutManager {
         let occupied = window.bounds.height - tabBarRect.minY
         guard occupied > 0, occupied < window.bounds.height * 0.3 else { return 0 }
         return occupied
+    }
+
+    /// 检查当前活跃的可见系统 Tab 栏是否正处于侧边与底部切换的过渡帧中
+    func isWaitingForTabBarToSettle(form: DuoDisplayForm, bottomTabBarHeight: CGFloat) -> Bool {
+        guard isDuo, let tabController = activeTabBarController else { return false }
+        let tabBar = tabController.tabBar
+        let hasVisibleTabBar = tabBar.isHidden == false && tabBar.window != nil
+        let isVerticalBarEnabled: Bool
+        if #available(iOS 27.1, *) {
+            isVerticalBarEnabled = tabController.traitCollection.verticalBarEdge != .unspecified
+        } else {
+            isVerticalBarEnabled = form.hasSideBar
+        }
+        return Self.needsWaitTabBarSettle(
+            for: form,
+            hasVisibleTabBar: hasVisibleTabBar,
+            isSystemVerticalBarEnabled: isVerticalBarEnabled,
+            bottomTabBarHeight: bottomTabBarHeight
+        )
     }
 
     /// 计算当前活跃页面内容真正要避开的区域。

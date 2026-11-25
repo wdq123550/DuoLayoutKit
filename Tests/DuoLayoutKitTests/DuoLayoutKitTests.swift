@@ -138,4 +138,20 @@ final class DuoLayoutKitTests: XCTestCase {
         // 状态栏主动隐藏时，顶部为 0 也可通过
         XCTAssertTrue(DuoLayoutManager.isStableInnerPortraitInsets(UIEdgeInsets(top: 0, left: 0, bottom: 34, right: 0), isStatusBarHidden: true))
     }
+
+    /// 验证横转竖、竖转横时等待系统 Tab 栏搬家就位的判断逻辑
+    func testTabBarSettleCheck() {
+        let portrait = DuoDisplayForm.innerPortrait(CGSize(width: 669, height: 835))
+        let landscape = DuoDisplayForm.innerLandscape(CGSize(width: 867, height: 635))
+        // 横转竖：有可见 Tab 栏，但底部 Tab 高还是 0 -> 需要等下一帧
+        XCTAssertTrue(DuoLayoutManager.needsWaitTabBarSettle(for: portrait, hasVisibleTabBar: true, isSystemVerticalBarEnabled: false, bottomTabBarHeight: 0))
+        // 横转竖：底部 Tab 栏已经落位到 83 -> 稳定放行
+        XCTAssertFalse(DuoLayoutManager.needsWaitTabBarSettle(for: portrait, hasVisibleTabBar: true, isSystemVerticalBarEnabled: false, bottomTabBarHeight: 83))
+        // 竖转横：有可见 Tab 栏且系统启用了竖排栏，但底部 Tab 高还残留 83 -> 需要等下一帧
+        XCTAssertTrue(DuoLayoutManager.needsWaitTabBarSettle(for: landscape, hasVisibleTabBar: true, isSystemVerticalBarEnabled: true, bottomTabBarHeight: 83))
+        // 竖转横：Tab 栏已经竖到右侧（底部高 0） -> 稳定放行
+        XCTAssertFalse(DuoLayoutManager.needsWaitTabBarSettle(for: landscape, hasVisibleTabBar: true, isSystemVerticalBarEnabled: true, bottomTabBarHeight: 0))
+        // 没有可见 Tab 栏（如二级页） -> 不等待
+        XCTAssertFalse(DuoLayoutManager.needsWaitTabBarSettle(for: portrait, hasVisibleTabBar: false, isSystemVerticalBarEnabled: false, bottomTabBarHeight: 0))
+    }
 }
