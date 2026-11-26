@@ -123,13 +123,11 @@ public struct DuoLayoutConfig {
     /// 创建一套屏幕形态缩放配置，未传的参数采用常见默认值（竖屏 390、内屏竖拿 669、内屏横拿 951）
     public init(
         portraitDesignWidth: CGFloat = 390,
-        innerPortraitBaseWidth: CGFloat? = nil,
         innerPortraitDesignWidth: CGFloat = 669,
         innerLandscapeDesignWidth: CGFloat = 951,
         isDebugLoggingEnabled: Bool = true
     ) {
         self.portraitDesignWidth = portraitDesignWidth
-        self.innerPortraitBaseWidth = innerPortraitBaseWidth
         self.innerPortraitDesignWidth = innerPortraitDesignWidth
         self.innerLandscapeDesignWidth = innerLandscapeDesignWidth
         self.isDebugLoggingEnabled = isDebugLoggingEnabled
@@ -137,9 +135,7 @@ public struct DuoLayoutConfig {
     //MARK: - 存储属性
     /// 记录普通直板机、iPhone Duo 外屏和左右分屏共用的竖屏设计稿宽度
     public let portraitDesignWidth: CGFloat
-    /// 记录 iPhone Duo 内屏竖拿时固定使用的屏幕基准宽度；为 nil 时直接使用窗口实际宽度（如 669）
-    public let innerPortraitBaseWidth: CGFloat?
-    /// 记录 iPhone Duo 内屏竖拿对应的设计稿宽度；与内屏竖拿基准宽度相等时缩放比例为 1:1
+    /// 记录 iPhone Duo 内屏竖拿对应的设计稿宽度；与内屏竖拿整窗宽度 669 对应 1:1
     public let innerPortraitDesignWidth: CGFloat
     /// 记录 iPhone Duo 内屏横拿对应的设计稿宽度；与含侧边栏的整屏宽度 951 对应 1:1
     public let innerLandscapeDesignWidth: CGFloat

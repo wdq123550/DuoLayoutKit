@@ -23,7 +23,6 @@ import DuoLayoutKit
 DuoLayoutManager.shared.setup(
     config: DuoLayoutConfig(
         portraitDesignWidth: 390,      // 直板机、Duo 外屏、左右分屏的设计稿宽
-        innerPortraitBaseWidth: nil,   // 传 nil 直接用窗口实际宽（669）；需要固定宽度（如 466）就填具体数字
         innerPortraitDesignWidth: 669, // 内屏竖拿设计稿宽
         innerLandscapeDesignWidth: 951 // 内屏横拿设计稿宽
     )
@@ -67,8 +66,7 @@ import DuoLayoutKit
 DuoLayoutManager.shared.setup(
     config: DuoLayoutConfig(
         portraitDesignWidth: 360,
-        innerPortraitBaseWidth: 466,
-        innerPortraitDesignWidth: 466,
+        innerPortraitDesignWidth: 669,
         innerLandscapeDesignWidth: 951
     )
 )

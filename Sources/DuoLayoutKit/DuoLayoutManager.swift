@@ -164,8 +164,7 @@ public extension DuoLayoutManager {
         baseWidth = Self.computeBaseWidth(
             for: form,
             windowWidth: windowWidth,
-            mainScreenWidth: UIScreen.main.bounds.size.width,
-            config: config
+            mainScreenWidth: UIScreen.main.bounds.size.width
         )
         designWidth = Self.computeDesignWidth(for: form, config: config)
         scheduleRefresh()
@@ -220,21 +219,18 @@ public extension DuoLayoutManager {
 
 //MARK: - 内部纯计算方法
 extension DuoLayoutManager {
-    /// 按形态与配置计算用来缩放的屏幕基准宽度
+    /// 按屏幕形态计算用来缩放的屏幕基准宽度
     static func computeBaseWidth(
         for form: DuoDisplayForm,
         windowWidth: CGFloat,
-        mainScreenWidth: CGFloat,
-        config: DuoLayoutConfig
+        mainScreenWidth: CGFloat
     ) -> CGFloat {
         switch form {
         case .phone:
             return mainScreenWidth
         case .outer(let size), .innerSplitLeft(let size), .innerSplitRight(let size):
             return size.width
-        case .innerPortrait:
-            return config.innerPortraitBaseWidth ?? windowWidth
-        case .innerLandscape:
+        case .innerPortrait, .innerLandscape:
             return windowWidth
         }
     }
@@ -410,8 +406,7 @@ private extension DuoLayoutManager {
             baseWidth = Self.computeBaseWidth(
                 for: newForm,
                 windowWidth: window.bounds.width,
-                mainScreenWidth: UIScreen.main.bounds.size.width,
-                config: config
+                mainScreenWidth: UIScreen.main.bounds.size.width
             )
             designWidth = Self.computeDesignWidth(for: newForm, config: config)
         }

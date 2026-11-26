@@ -9,19 +9,17 @@ import XCTest
 @testable import DuoLayoutKit
 
 final class DuoLayoutKitTests: XCTestCase {
-    /// 验证按 FurFriends 风格配置（390 / 669 / 951）时，各形态计算出的基准宽和设计稿宽是否准确
+    /// 验证按 390 / 669 / 951 配置时，各形态计算出的基准宽和设计稿宽是否准确
     func testScaleMetricsWithDefaultStyleConfig() {
         let config = DuoLayoutConfig(
             portraitDesignWidth: 390,
-            innerPortraitBaseWidth: nil,
             innerPortraitDesignWidth: 669,
             innerLandscapeDesignWidth: 951
         )
         let phoneBase = DuoLayoutManager.computeBaseWidth(
             for: .phone(CGSize(width: 393, height: 759)),
             windowWidth: 393,
-            mainScreenWidth: 393,
-            config: config
+            mainScreenWidth: 393
         )
         XCTAssertEqual(phoneBase, 393)
         XCTAssertEqual(DuoLayoutManager.computeDesignWidth(for: .phone(CGSize(width: 393, height: 759)), config: config), 390)
@@ -30,8 +28,7 @@ final class DuoLayoutKitTests: XCTestCase {
         let outerBase = DuoLayoutManager.computeBaseWidth(
             for: outerForm,
             windowWidth: 466,
-            mainScreenWidth: 466,
-            config: config
+            mainScreenWidth: 466
         )
         XCTAssertEqual(outerBase, 382)
         XCTAssertEqual(DuoLayoutManager.computeDesignWidth(for: outerForm, config: config), 390)
@@ -40,8 +37,7 @@ final class DuoLayoutKitTests: XCTestCase {
         let innerPortraitBase = DuoLayoutManager.computeBaseWidth(
             for: innerPortraitForm,
             windowWidth: 669,
-            mainScreenWidth: 466,
-            config: config
+            mainScreenWidth: 466
         )
         XCTAssertEqual(innerPortraitBase, 669)
         XCTAssertEqual(DuoLayoutManager.computeDesignWidth(for: innerPortraitForm, config: config), 669)
@@ -50,31 +46,37 @@ final class DuoLayoutKitTests: XCTestCase {
         let innerLandscapeBase = DuoLayoutManager.computeBaseWidth(
             for: innerLandscapeForm,
             windowWidth: 951,
-            mainScreenWidth: 466,
-            config: config
+            mainScreenWidth: 466
         )
         XCTAssertEqual(innerLandscapeBase, 951)
         XCTAssertEqual(DuoLayoutManager.computeDesignWidth(for: innerLandscapeForm, config: config), 951)
     }
 
-    /// 验证按固定内屏竖屏基准配置（360 / 466 / 951）时，内屏竖拿固定采用 466 且保持 1:1
-    func testScaleMetricsWithFixedInnerPortraitBaseWidth() {
+    /// 验证按 360 / 669 / 951 配置时，竖屏与分屏按 360 换算、内屏竖拿直接按整窗宽度 669 保持 1:1
+    func testScaleMetricsWith360PortraitConfig() {
         let config = DuoLayoutConfig(
             portraitDesignWidth: 360,
-            innerPortraitBaseWidth: 466,
-            innerPortraitDesignWidth: 466,
+            innerPortraitDesignWidth: 669,
             innerLandscapeDesignWidth: 951
         )
+        let splitForm = DuoDisplayForm.innerSplitLeft(CGSize(width: 385, height: 649))
+        let splitBase = DuoLayoutManager.computeBaseWidth(
+            for: splitForm,
+            windowWidth: 469,
+            mainScreenWidth: 466
+        )
+        XCTAssertEqual(splitBase, 385)
+        XCTAssertEqual(DuoLayoutManager.computeDesignWidth(for: splitForm, config: config), 360)
+
         let innerPortraitForm = DuoDisplayForm.innerPortrait(CGSize(width: 669, height: 910))
         let baseWidth = DuoLayoutManager.computeBaseWidth(
             for: innerPortraitForm,
             windowWidth: 669,
-            mainScreenWidth: 466,
-            config: config
+            mainScreenWidth: 466
         )
         let designWidth = DuoLayoutManager.computeDesignWidth(for: innerPortraitForm, config: config)
-        XCTAssertEqual(baseWidth, 466)
-        XCTAssertEqual(designWidth, 466)
+        XCTAssertEqual(baseWidth, 669)
+        XCTAssertEqual(designWidth, 669)
     }
 
     /// 验证侧边栏在左、在右和无侧边栏时，内容中心偏移量和可用水平区域计算是否正确
